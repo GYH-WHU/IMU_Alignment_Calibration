@@ -1,273 +1,129 @@
-# 惯性导航原理实验 - IMU标定与初始对准
+# IMU 标定与初始对准实验
 
-## 📋 项目简介
+本仓库整理了惯性导航原理实验中的 IMU 传感器标定与静态初始对准代码。项目基于 C++ 和 Eigen 实现，包含加速度计六位置标定、陀螺仪正反向旋转标定、静态粗对准，以及 MATLAB 结果绘图脚本和实验报告。
 
-本项目是**惯性导航原理**课程实验代码实现，主要完成IMU（惯性测量单元）的**传感器标定**和**初始对准**两大核心功能。项目包含加速度计和陀螺仪的标定算法，以及基于静态数据的初始姿态角计算。
+仓库中原始数据与结果以压缩包形式保存：运行程序前需要先在仓库根目录解压 `Data.zip` 和 `Result.zip`，解压后程序会按 `Data/` 和 `Result/` 的相对路径读取和写出文件。
 
-**实验内容：**
-- 实验一：IMU传感器标定（加速度计六位置标定、陀螺仪旋转标定）
-- 实验二：初始对准（粗对准算法实现）
+## 快速使用
 
----
+1. 解压数据与结果目录：
 
-## 🎯 主要功能
-
-程序提供三种运行模式，可通过交互式菜单选择：
-
-| 模式 | 功能 | 说明 |
-|------|------|------|
-| **0** | 加速度计标定 | 基于六位置法计算偏置、标度因数和交叉耦合误差矩阵 |
-| **1** | 陀螺仪标定 | 基于正反向旋转法计算偏置和标度因数 |
-| **2** | 初始对准 | 基于静态数据计算姿态角（航向角、俯仰角、横滚角） |
-
----
-
-## 📁 项目结构
-
-```
-惯性导航原理实验一&二/
-│
-├── 📂 Data/                          # 实验数据目录
-│   ├── Calibration/                  # 标定实验数据
-│   │   ├── x_up_3min.ASC            # X轴向上3分钟（加速度计标定）
-│   │   ├── x_down_3min.ASC          # X轴向下3分钟（加速度计标定）
-│   │   ├── y_up_3min.ASC            # Y轴向上3分钟（加速度计标定）
-│   │   ├── y_down_3min.ASC          # Y轴向下3分钟（加速度计标定）
-│   │   ├── z_up_3min.ASC            # Z轴向上3分钟（加速度计标定）
-│   │   ├── z_down_3min.ASC          # Z轴向下3分钟（加速度计标定）
-│   │   ├── x+360.ASC                # X轴正向旋转360°（陀螺仪标定）
-│   │   ├── x-360.ASC                # X轴负向旋转360°（陀螺仪标定）
-│   │   ├── y+360.ASC                # Y轴正向旋转360°（陀螺仪标定）
-│   │   ├── y-360.ASC                # Y轴负向旋转360°（陀螺仪标定）
-│   │   ├── z+360.ASC                # Z轴正向旋转360°（陀螺仪标定）
-│   │   └── z-360.ASC                # Z轴负向旋转360°（陀螺仪标定）
-│   └── Align/                        # 初始对准数据
-│       └── Align_30min.ASC          # 静态对准30分钟数据
-│
-├── 📂 Result/                        # 结果输出目录
-│   └── Figure_Matlab/                # MATLAB绘图脚本和结果数据
-│       ├── AccCali/                  # 加速度计标定结果
-│       │   ├── AccCaliError.txt     # 标定误差参数
-│       │   └── *_Raw_Com.txt        # 原始与补偿数据对比
-│       ├── AccCali_fig.m            # 加速度计标定绘图脚本
-│       ├── AccFig/                   # 加速度计标定图像（.fig）
-│       │
-│       ├── GyrCali/                  # 陀螺仪标定结果
-│       │   ├── GyroCalibration.txt  # 陀螺仪标定参数
-│       │   ├── *_Angle.txt          # 旋转角度计算结果
-│       │   └── *_Raw_Com.txt        # 原始与补偿数据对比
-│       ├── GyrCali_fig.m            # 陀螺仪标定绘图脚本
-│       ├── GyrFig/                   # 陀螺仪标定图像（.fig）
-│       │
-│       ├── Align/                    # 初始对准结果
-│       │   ├── Align_Whole.txt      # 整体数据对准结果
-│       │   ├── Align_Second.txt     # 每秒对准结果
-│       │   ├── Align_Epoch.txt      # 每历元对准结果
-│       │   └── Align_Deviation.txt  # 对准偏差分析
-│       ├── Align_fig.m              # 初始对准绘图脚本
-│       ├── AliFig/                   # 初始对准图像（.fig）
-│       │
-│       ├── main.m                    # MATLAB主脚本
-│       └── ReadData.m                # MATLAB数据读取脚本
-│
-├── 📄 源代码文件                      # C++源代码（根目录）
-│   ├── main.cpp                      # 主程序入口，交互式菜单
-│   ├── IMU_Structs.h                 # 数据结构定义和设备参数
-│   ├── Calibration.cpp               # 标定算法实现
-│   ├── Align.cpp                     # 初始对准算法实现
-│   ├── ReadFile.cpp                  # 数据文件读取解析
-│   └── MatrixPrint.cpp               # 矩阵打印工具
-│
-├── 📂 实验报告/                      # 实验报告文档
-│   ├── 实验报告.docx/pdf
-│   └── 图例.pptx
-│
-└── 📂 实验指导书/                    # 实验指导文档
-    ├── 惯性导航实验指导书.pdf
-    └── 【V2】初始对准实验与标定试验数据解码与转换方法.docx
+```powershell
+Expand-Archive .\Data.zip -DestinationPath .
+Expand-Archive .\Result.zip -DestinationPath .
 ```
 
-### 目录说明
+2. 编译 C++ 程序：
 
-#### 数据目录 (Data/)
-- **Calibration/**：标定实验所需的原始数据
-  - 加速度计数据：6个位置的静态数据（每个位置3分钟）
-  - 陀螺仪数据：3个轴的正反向旋转数据（各旋转360°）
-- **Align/**：初始对准实验数据（静态30分钟）
-
-#### 结果目录 (Result/)
-- **AccCali/**：加速度计标定结果（标定参数、补偿对比）
-- **GyrCali/**：陀螺仪标定结果（标定参数、角度计算、补偿对比）
-- **Align/**：初始对准结果（整体/每秒/每历元对准、偏差分析）
-- **MATLAB脚本**：用于结果可视化的绘图脚本（`*_fig.m`）
-- **图像文件**：MATLAB生成的图表文件（`.fig`格式）
-
----
-
-## 🔧 环境要求
-
-### 硬件设备
-- **标定设备**：XW-GI7681（采样率100Hz）
-- **对准设备**：NoVATel SPAN-100C（采样率200Hz）
-
-### 依赖库
-- **Eigen3**：矩阵运算库（必需）
-- **C++11**：编译器需支持C++11标准
-
----
-
-## 🚀 编译与运行
-
-### 1. 安装依赖
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install libeigen3-dev
+```powershell
+g++ -std=c++11 .\代码\main.cpp .\代码\Calibration.cpp .\代码\Align.cpp .\代码\ReadFile.cpp .\代码\MatrixPrint.cpp -I <Eigen路径> -o imu_alignment_calibration.exe
 ```
 
-**Windows (使用vcpkg):**
-```bash
-vcpkg install eigen3
+3. 运行：
+
+```powershell
+.\imu_alignment_calibration.exe
 ```
 
-**macOS:**
-```bash
-brew install eigen
+程序启动后输入模式编号：
+
+```text
+0  加速度计六位置标定
+1  陀螺仪旋转标定
+2  静态初始对准
 ```
 
-### 2. 编译项目
+## 主要功能
 
-```bash
-# 编译所有源文件
-g++ -std=c++11 -I/usr/include/eigen3 *.cpp -o imu_calibration
+- 加速度计标定：读取六个静态位置的 XW-GI7681 数据，估计零偏、比例因子和交叉耦合误差。
+- 陀螺仪标定：读取 X/Y/Z 三轴正反向 360 度旋转数据，积分角速度并估计零偏和比例因子。
+- 静态初始对准：基于 NoVATel SPAN-100C 静态数据计算整段、逐秒和逐历元姿态角。
+- 误差补偿输出：保存原始观测与补偿后观测，便于后续 MATLAB 对比。
+- MATLAB 绘图：`Result/Figure_Matlab/` 中包含加速度计、陀螺仪和对准结果绘图脚本。
 
-# 或者指定Eigen3路径（根据实际安装路径调整）
-g++ -std=c++11 -I/path/to/eigen3 *.cpp -o imu_calibration
+## 项目结构
+
+```text
+.
+├─ Data.zip                       # 原始 IMU 数据压缩包，运行前解压
+├─ Result.zip                     # 已生成结果与 MATLAB 脚本压缩包，运行前解压
+├─ 代码/
+│  ├─ main.cpp                    # 交互式入口，选择 0/1/2 三种处理模式
+│  ├─ IMU_Structs.h               # 常量、数据结构和函数声明
+│  ├─ Calibration.cpp             # 加速度计/陀螺仪标定与补偿
+│  ├─ Align.cpp                   # 静态粗对准与噪声统计
+│  ├─ ReadFile.cpp                # ASC 数据读取
+│  └─ MatrixPrint.cpp             # 矩阵/向量打印工具
+├─ 实验报告/
+│  ├─ 实验报告.pdf
+│  └─ 图例.pptx
+├─ 实验指导书/
+│  ├─ 惯性导航实验指导书.pdf
+│  └─ 【V2】初始对准实验与标定试验数据解码与转换方法.docx
+└─ README.md
 ```
 
-### 3. 运行程序
+解压后的主要目录：
 
-```bash
-./imu_calibration
+```text
+Data/
+├─ Calibration/                   # x/y/z 六位置与三轴正反转数据
+└─ Align/                         # Align_30min.txt 静态对准数据
+
+Result/Figure_Matlab/
+├─ AccCali/                       # 加速度计标定结果
+├─ GyrCali/                       # 陀螺仪标定结果
+├─ Align/                         # 初始对准结果
+├─ AccCali_fig.m
+├─ GyrCali_fig.m
+├─ Align_fig.m
+└─ main.m
 ```
 
-程序将显示菜单：
+## 代码模块
+
+| 文件 | 说明 |
+| --- | --- |
+| `main.cpp` | 根据输入模式调度加速度计标定、陀螺仪标定或初始对准 |
+| `Calibration.cpp` | `CaliAcc`、`CaliGyro`、`CompenAcc`、`CompenGyro` 等标定与补偿函数 |
+| `Align.cpp` | `CoarseAlign_Whole`、`CoarseAlign_EverySecond`、`CoarseAlign_EveryEpoch`、`CalTimeNoise` |
+| `ReadFile.cpp` | 标定数据和对准数据的逐行读取与单位转换 |
+| `IMU_Structs.h` | GPS 时间、IMU 原始观测、标定误差、姿态结果等结构体定义 |
+
+## 输出结果
+
+```text
+Result/Figure_Matlab/AccCali/AccCaliError.txt
+Result/Figure_Matlab/AccCali/*_Raw_Com.txt
+Result/Figure_Matlab/GyrCali/GyroCalibration.txt
+Result/Figure_Matlab/GyrCali/*_Angle.txt
+Result/Figure_Matlab/GyrCali/*_Raw_Com.txt
+Result/Figure_Matlab/Align/Align_Whole.txt
+Result/Figure_Matlab/Align/Align_Second.txt
+Result/Figure_Matlab/Align/Align_Epoch.txt
+Result/Figure_Matlab/Align/Align_Deviation.txt
 ```
-0加速度计标定 1陀螺仪标定 2手动对准
-请输入需要处理的数据：
+
+MATLAB 可视化：
+
+```matlab
+cd Result/Figure_Matlab
+main
 ```
 
-根据提示输入：
-- `0` - 执行加速度计标定
-- `1` - 执行陀螺仪标定
-- `2` - 执行初始对准
+## 环境要求
 
-### 4. 查看结果
+- C++11 编译器
+- Eigen3
+- MATLAB，用于结果绘图
+- Windows 路径下运行最省事，因为源码中的数据路径使用 `Data\...` 和 `Result\...`
 
-程序运行完成后，结果将保存在 `Result/Figure_Matlab/` 目录下：
+## 报告
 
-```bash
-# 进入MATLAB目录
-cd Result/Figure_Matlab/
-
-# 在MATLAB中运行绘图脚本
-matlab -r "run('AccCali_fig.m')"    # 加速度计标定绘图
-matlab -r "run('GyrCali_fig.m')"    # 陀螺仪标定绘图
-matlab -r "run('Align_fig.m')"      # 初始对准绘图
+```text
+实验报告/实验报告.pdf
 ```
 
----
+## 作者
 
-## 📊 输出结果说明
-
-### 加速度计标定结果
-- **AccCaliError.txt**：标定误差参数（偏置、标度因数、交叉耦合矩阵）
-- ***_Raw_Com.txt**：各位置原始数据与补偿后数据对比
-
-### 陀螺仪标定结果
-- **GyroCalibration.txt**：标定参数（偏置[deg/h]、标度因数）
-- ***_Angle.txt**：各轴旋转角度积分计算结果
-- ***_Raw_Com.txt**：原始数据与补偿后数据对比
-
-### 初始对准结果
-- **Align_Whole.txt**：使用全部数据计算的整体对准结果（航向角、俯仰角、横滚角）
-- **Align_Second.txt**：每秒更新的对准结果，用于观察收敛过程
-- **Align_Epoch.txt**：每个历元的对准结果，最高精度
-- **Align_Deviation.txt**：对准偏差分析，包括白噪声等误差分析
-
----
-
-## 📝 数据格式
-
-### 输入数据格式
-- 文件格式：`.ASC` 格式的原始IMU数据文件
-- 数据内容：GPS时间、加速度计数据（X/Y/Z）、陀螺仪数据（X/Y/Z）
-- 数据说明：详见 `实验指导书/【V2】初始对准实验与标定试验数据解码与转换方法.docx`
-
-### 输出数据格式
-- 结果文件：文本格式（`.txt`），包含计算结果
-- 图像文件：MATLAB格式（`.fig`），可使用MATLAB打开和编辑
-
----
-
-## ⚠️ 注意事项
-
-1. **数据文件路径**：程序使用Windows路径分隔符（`\\`），确保数据文件路径正确
-2. **标定数据完整性**：加速度计标定需要6个位置的完整数据，陀螺仪标定需要3个轴的正反向旋转数据
-3. **对准数据要求**：初始对准需要静态采集的30分钟数据，且数据文件需为`.ASC`格式
-4. **Eigen3路径**：编译时需正确指定Eigen3库的包含路径
-5. **MATLAB版本**：建议使用MATLAB R2014b或更高版本运行绘图脚本
-
----
-
-## 📚 核心算法
-
-### 加速度计标定
-- 六位置标定法：利用6个不同位置的静态数据计算误差参数
-- 误差模型：包含偏置、标度因数和交叉耦合误差
-- 补偿算法：基于标定矩阵对原始数据进行误差补偿
-
-### 陀螺仪标定
-- 旋转标定法：利用正反向旋转数据计算误差参数
-- 角度积分：通过角速度积分计算旋转角度
-- 误差模型：包含偏置和标度因数误差
-
-### 初始对准
-- 粗对准算法：基于加速度计和陀螺仪静态数据计算初始姿态
-- 姿态角计算：航向角、俯仰角、横滚角
-- 收敛分析：通过不同时间窗口观察对准收敛过程
-
----
-
-## 👤 作者信息
-
-**姓名**：GYH  
-**课程**：惯性导航原理  
-**实验**：实验一（标定）& 实验二（初始对准）
-
----
-
-## 📄 许可证
-
-本项目为课程实验代码，仅供学习参考。
-
----
-
-## 🔗 相关文档
-
-- 实验指导书：`实验指导书/惯性导航实验指导书.pdf`
-- 数据格式说明：`实验指导书/【V2】初始对准实验与标定试验数据解码与转换方法.docx`
-- 实验报告：`实验报告/实验报告.pdf`
-
----
-
-## 📞 问题反馈
-
-如有问题或建议，请通过以下方式联系：
-- 查看实验指导书和代码注释
-- 检查数据文件格式和路径是否正确
-- 确认Eigen3库已正确安装
-
----
-
-**最后更新**：2024年
+GYH-WHU
